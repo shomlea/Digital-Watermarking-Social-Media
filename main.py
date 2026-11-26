@@ -1,51 +1,43 @@
+import glob
+import os
+
 import cv2
-from watermark import embed_watermark, extract_watermark
 
-# --- embed watermark ---
-# alpha: embedding strength (0.01 to 0.10). 0.05 is a solid default
-watermarked_image, metadata = embed_watermark(
-    cover_path="images/dog.jpg",
-    watermark_path="logo.png",
-    alpha=0.05,
-    wavelet="haar"
-)
+from src.attacks import jpeg, rescale
+from src.watermark import METHODS, detect_watermark, embed_watermark, save_metadata
 
-watermarked_image2, metadata2 = embed_watermark(
-    cover_path="images/monke.png",
-    watermark_path="logo.png",
-    alpha=0.05,
-    wavelet="haar"
-)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGES_DIR = os.path.join(BASE_DIR, "images")
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 
-# save the watermarked image
-cv2.imwrite("output/watermarked_output.png", watermarked_image)
-cv2.imwrite("output/watermarked_output2.png", watermarked_image2)
+image_paths = sorted(glob.glob(os.path.join(IMAGES_DIR, "commons_*.png")))
+print(f"found {len(image_paths)} images")
 
-# --- extract watermark ---
-# in a non-blind scheme, the extraction function requires:
-# the watermarked (or attacked) image
-# the metadata dictionary saved during embedding (U_w, Vt_w, S_c, alpha, wm_shape)
-recovered_watermark = extract_watermark(watermarked_image, metadata, wavelet="haar")
-recovered_watermark2 = extract_watermark(watermarked_image2, metadata2, wavelet="haar")
+for path in image_paths:
+    name = os.path.splitext(os.path.basename(path))[0]
+    cover = cv2.imread(path, cv2.IMREAD_COLOR)
+    print(f"\n{name}")
 
+    for method in METHODS:
+        watermarked_image, metadata = embed_watermark(
+            cover_path=path,
+            method=method,
+            n_bits=64,
+            delta=0.2,
+            seed=42
+        )
 
-no_watermark_img = cv2.imread(
-    "images/dog.jpg",
-    cv2.IMREAD_COLOR
-)
+        os.makedirs(os.path.join(OUTPUT_DIR, method), exist_ok=True)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, method, name + ".png"), watermarked_image)
+        save_metadata(metadata, os.path.join(OUTPUT_DIR, method, name + ".json"))
 
-no_watermark = extract_watermark(
-    no_watermark_img,
-    metadata
-)
-
-
-cv2.imwrite(
-    "output/no_watermark.png",
-    no_watermark
-)
-
-# save the recovered watermark
-cv2.imwrite("output/recovered_watermark.png", recovered_watermark)
-cv2.imwrite("output/recovered_watermark2.png", recovered_watermark2)
-
+        tests = [
+            ("watermarked", watermarked_image),
+            ("JPEG 75", jpeg(watermarked_image, 75)),
+            ("50% resize", rescale(watermarked_image, 0.5)),
+            ("original", cover)
+        ]
+        for test_name, img in tests:
+            result = detect_watermark(img, metadata)
+            print(f"  {method:12s} {test_name:12s} BER={result['ber']:.3f}  "
+                  f"p={result['p_value']:.1e}  detected={result['detected']}")
