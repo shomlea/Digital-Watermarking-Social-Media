@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-# traditional benchmark attacks (StirMark / Checkmark style)
+# traditional benchmark attacks
 # every attack takes a BGR uint8 image and returns one
 # rescale and crop return a smaller image, like a platform would
 
