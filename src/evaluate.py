@@ -9,8 +9,9 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from attacks import ATTACKS
 from watermark import METHODS, detect_watermark, embed_watermark, save_metadata
 
-IMAGES_DIR = "images"
-OUTPUT_DIR = "output"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+IMAGES_DIR = os.path.join(BASE_DIR, "images")
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 N_BITS = 64
 # delta: embedding strength (0.1 to 0.3). 0.2 gives ~42 dB PSNR, higher = more robust but more visible
 DELTA = 0.2
